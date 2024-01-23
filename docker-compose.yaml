@@ -1,0 +1,66 @@
+version: '3.8'
+
+networks:
+  default:
+    name: ${APP_NAME}-network
+    driver: bridge
+
+services:
+  nginx:
+    image: nginx:latest
+    container_name: ${APP_NAME}-nginx
+    volumes:
+      - ${APP_BASE_DIR}:/var/www/html
+      - ./docker/nginx:/etc/nginx/conf.d
+    ports:
+      - ${NGINX_SERVICE_PORT}
+    networks:
+      - default
+    depends_on:
+      - php_fpm
+
+  php_fpm:
+    build:
+      args:
+        user: web
+        uid: 1000
+      context: .
+      dockerfile: ./docker/php/Dockerfile
+    container_name: ${APP_NAME}-phpfpm
+    volumes:
+      - ${APP_BASE_DIR}:/var/www/html
+    networks:
+      - default
+    depends_on:
+      - mariadb
+
+  mariadb:
+    image: mariadb:latest
+    container_name: ${APP_NAME}-mariadb
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    restart: always
+    volumes:
+      - ./docker/mariadb:/var/lib/mysql
+    ports:
+      - ${MYSQL_SERVICE_PORT}
+    networks:
+      - default
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: ${APP_NAME}-phpmyadmin
+    links:
+      - mariadb
+    environment:
+      PMA_HOST: mariadb
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+    restart: always
+    ports:
+      - ${PHPMYADMIN_SERVICE_PORT}
+    networks:
+      - default
